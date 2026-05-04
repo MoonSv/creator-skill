@@ -1,0 +1,9 @@
+{
+  "name": "creator-skill",
+  "version": "1.0.0",
+  "description": "小红书内容创作助手 - 基于实时数据分析生成发布建议",
+  "author": {
+    "name": "wangjiaqi"
+  },
+  "keywords": ["xiaohongshu", "xhs", "小红书", "content-creation", "social-media"]
+}
