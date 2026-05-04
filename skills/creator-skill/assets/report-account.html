@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账号分析报告 - {{ACCOUNT_NAME}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root { --xhs-red: #FF2442; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
+        .gradient-header { background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%); }
+        .card { transition: all 0.3s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .collapse-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .collapse-content.open { max-height: 8000px; }
+        .metric-card { border-left: 4px solid #6366F1; }
+        .tag { display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 13px; margin: 3px; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- 头部 -->
+<header class="gradient-header text-white py-8 px-6 shadow-lg">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">账号分析报告</h1>
+        <div class="flex items-center gap-4 mt-3">
+            <div>
+                <p class="text-xl font-semibold">
+                    <a href="{{ACCOUNT_URL}}" target="_blank" class="underline hover:opacity-100">@{{ACCOUNT_NAME}}</a>
+                </p>
+                <p class="text-sm opacity-80 mt-1">{{ACCOUNT_BIO}}</p>
+            </div>
+        </div>
+        <p class="text-sm opacity-60 mt-3">报告生成: {{GENERATED_TIME}}</p>
+    </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+
+<!-- ===== 1. 账号概览 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+        账号概览
+    </h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="metric-card bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-500">粉丝</div>
+            <div class="text-2xl font-bold text-gray-800">{{FOLLOWERS}}</div>
+            <div class="text-xs text-gray-400">{{ACCOUNT_LEVEL}}</div>
+        </div>
+        <div class="metric-card bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-500">获赞与收藏</div>
+            <div class="text-2xl font-bold text-gray-800">{{TOTAL_LIKES}}</div>
+        </div>
+        <div class="metric-card bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-500">帖子数</div>
+            <div class="text-2xl font-bold text-gray-800">{{TOTAL_POSTS}}</div>
+            <div class="text-xs text-gray-400">发布频率: {{POST_FREQUENCY}}</div>
+        </div>
+        <div class="metric-card bg-gray-50 rounded-lg p-4">
+            <div class="text-sm text-gray-500">单帖平均互动</div>
+            <div class="text-2xl font-bold text-gray-800">{{AVG_ENGAGEMENT}}</div>
+            <div class="text-xs text-gray-400">互动率: {{ENGAGEMENT_RATE}}</div>
+        </div>
+    </div>
+    <div class="mt-4 flex items-center gap-2">
+        <span class="text-sm text-gray-500">整体趋势：</span>
+        <span class="tag bg-indigo-100 text-indigo-700">{{TREND_LABEL}}</span>
+    </div>
+</section>
+
+<!-- ===== 2. 数据总览 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('data-overview')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            数据总览
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="data-overview-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="data-overview">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 互动趋势折线图 -->
+            <div>
+                <canvas id="trendChart" height="250"></canvas>
+            </div>
+            <!-- 内容类型饼图 -->
+            <div>
+                <canvas id="pieChart" height="250"></canvas>
+            </div>
+        </div>
+        <!-- 帖子散点图 -->
+        <div class="mt-6">
+            <canvas id="scatterChart" height="200"></canvas>
+        </div>
+    </div>
+</section>
+
+<!-- ===== 3. 爆款复盘 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('viral-review')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            爆款复盘
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="viral-review-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="viral-review">
+        <div class="mb-6">
+            <h3 class="font-semibold text-green-700 mb-3">表现最佳</h3>
+            <div class="space-y-3">
+                {{TOP_POSTS_CARDS}}
+            </div>
+        </div>
+        <div class="mb-6">
+            <h3 class="font-semibold text-gray-500 mb-3">表现低迷</h3>
+            <div class="space-y-3">
+                {{BOTTOM_POSTS_CARDS}}
+            </div>
+        </div>
+        <div class="bg-indigo-50 rounded-lg p-4">
+            <h3 class="font-semibold text-indigo-700 mb-2">爆款共性</h3>
+            {{VIRAL_PATTERNS}}
+        </div>
+    </div>
+</section>
+
+<!-- ===== 4. 标签分析 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('tag-analysis')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            标签 & SEO 分析
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="tag-analysis-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="tag-analysis">
+        {{TAG_ANALYSIS}}
+    </div>
+</section>
+
+<!-- ===== 5. 对标博主 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('benchmark')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            对标博主
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="benchmark-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="benchmark">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium text-gray-600">博主</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-600">粉丝</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-600">帖子数</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-600">平均互动</th>
+                        <th class="px-4 py-3 text-right font-medium text-gray-600">互动率</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-600">风格</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {{BENCHMARK_TABLE}}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 bg-blue-50 rounded-lg p-4">
+            <h3 class="font-semibold text-blue-700 mb-2">可借鉴策略</h3>
+            {{BENCHMARK_STRATEGIES}}
+        </div>
+    </div>
+</section>
+
+<!-- ===== 6. 运营建议 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('advice')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-indigo-500 rounded-full"></span>
+            运营建议
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="advice-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="advice">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-purple-50 rounded-lg p-4">
+                <h3 class="font-semibold text-purple-700 mb-2">内容方向</h3>
+                {{CONTENT_ADVICE}}
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h3 class="font-semibold text-blue-700 mb-2">发布节奏</h3>
+                {{RHYTHM_ADVICE}}
+            </div>
+            <div class="bg-green-50 rounded-lg p-4">
+                <h3 class="font-semibold text-green-700 mb-2">增长策略</h3>
+                {{GROWTH_STRATEGY}}
+            </div>
+        </div>
+        <div class="bg-red-50 rounded-lg p-4">
+            <h3 class="font-semibold text-red-700 mb-3">短期行动清单</h3>
+            <div class="space-y-1">
+                {{ACTION_ITEMS}}
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<footer class="text-center py-6 text-sm text-gray-400">
+    Creator Skill 账号分析 · 数据仅供参考 · 请遵守小红书社区规范
+</footer>
+
+<script>
+function toggleSection(id) {
+    const content = document.getElementById(id);
+    const arrow = document.getElementById(id + '-arrow');
+    content.classList.toggle('open');
+    arrow.style.transform = content.classList.contains('open') ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+// 互动趋势折线图
+const trendData = {{TREND_DATA_JSON}};
+if (trendData && trendData.labels) {
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: trendData.labels,
+            datasets: [{
+                label: '总互动',
+                data: trendData.engagement,
+                borderColor: '#6366F1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: '帖子互动趋势' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// 内容类型饼图
+const pieData = {{PIE_DATA_JSON}};
+if (pieData && pieData.labels) {
+    new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut',
+        data: {
+            labels: pieData.labels,
+            datasets: [{
+                data: pieData.values,
+                backgroundColor: ['#FF2442', '#FF6B81', '#6366F1', '#8B5CF6', '#3B82F6', '#10B981']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: '内容类型分布' } }
+        }
+    });
+}
+
+// 帖子散点图
+const scatterData = {{SCATTER_DATA_JSON}};
+if (scatterData && scatterData.points) {
+    new Chart(document.getElementById('scatterChart'), {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: '帖子',
+                data: scatterData.points,
+                backgroundColor: scatterData.colors || 'rgba(99, 102, 241, 0.6)',
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { title: { display: true, text: '帖子表现分布（横轴:时间 纵轴:互动量）' } },
+            scales: {
+                x: { title: { display: true, text: '发布时间' } },
+                y: { beginAtZero: true, title: { display: true, text: '总互动' } }
+            }
+        }
+    });
+}
+</script>
+
+</body>
+</html>

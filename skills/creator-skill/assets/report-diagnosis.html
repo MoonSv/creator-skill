@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帖子诊断报告 - {{POST_TITLE}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        :root { --xhs-red: #FF2442; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
+        .gradient-header { background: linear-gradient(135deg, #FF6B35 0%, #FF2442 100%); }
+        .card { transition: all 0.3s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .collapse-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .collapse-content.open { max-height: 5000px; }
+        .metric-card { border-left: 4px solid var(--xhs-red); }
+        .score-ring { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- 头部 -->
+<header class="gradient-header text-white py-8 px-6 shadow-lg">
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">帖子诊断报告</h1>
+        <p class="text-lg opacity-90">
+            <a href="{{POST_URL}}" target="_blank" class="underline hover:opacity-100">{{POST_TITLE}}</a>
+        </p>
+        <p class="text-sm opacity-70 mt-2">@{{POST_AUTHOR}} · {{POST_TIME}} · 报告生成: {{GENERATED_TIME}}</p>
+    </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+
+<!-- ===== 1. 数据概览 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-orange-500 rounded-full"></span>
+        数据概览
+    </h2>
+    <div class="flex flex-col md:flex-row gap-6">
+        <!-- 健康度评分 -->
+        <div class="flex flex-col items-center">
+            <div class="score-ring bg-gradient-to-br from-orange-100 to-red-100 text-red-600">
+                {{HEALTH_SCORE}}
+            </div>
+            <p class="text-sm text-gray-500 mt-2">数据健康度</p>
+            <span class="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-700 mt-1">{{HEALTH_LEVEL}}</span>
+        </div>
+        <!-- 指标卡片 -->
+        <div class="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="metric-card bg-gray-50 rounded-lg p-4">
+                <div class="text-sm text-gray-500">点赞</div>
+                <div class="text-2xl font-bold text-gray-800">{{POST_LIKES}}</div>
+                <div class="text-xs text-gray-400">同主题排名 {{PERCENTILE_RANK}}</div>
+            </div>
+            <div class="metric-card bg-gray-50 rounded-lg p-4">
+                <div class="text-sm text-gray-500">收藏</div>
+                <div class="text-2xl font-bold text-gray-800">{{POST_COLLECTS}}</div>
+                <div class="text-xs text-gray-400">收藏/点赞比 {{COLLECT_LIKE_RATIO}}</div>
+            </div>
+            <div class="metric-card bg-gray-50 rounded-lg p-4">
+                <div class="text-sm text-gray-500">评论</div>
+                <div class="text-2xl font-bold text-gray-800">{{POST_COMMENTS}}</div>
+                <div class="text-xs text-gray-400">评论/点赞比 {{COMMENT_LIKE_RATIO}}</div>
+            </div>
+            <div class="metric-card bg-gray-50 rounded-lg p-4">
+                <div class="text-sm text-gray-500">作者粉丝</div>
+                <div class="text-2xl font-bold text-gray-800">{{AUTHOR_FOLLOWERS}}</div>
+                <div class="text-xs text-gray-400">{{AUTHOR_LEVEL}}</div>
+            </div>
+            <div class="metric-card bg-gray-50 rounded-lg p-4 col-span-2 md:col-span-2">
+                <div class="text-sm text-gray-500">数据预期</div>
+                <div class="text-sm font-medium text-gray-700 mt-1">{{DATA_EXPECTATIONS}}</div>
+            </div>
+        </div>
+    </div>
+    <!-- 雷达图 -->
+    <div class="mt-6" style="max-width: 400px; margin: 0 auto;">
+        <canvas id="radarChart" height="300"></canvas>
+    </div>
+</section>
+
+<!-- ===== 2. 竞品对比 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('competitors')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-orange-500 rounded-full"></span>
+            竞品对比
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="competitors-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="competitors">
+        <div class="mb-6">
+            <canvas id="comparisonChart" height="200"></canvas>
+        </div>
+        <div class="space-y-3">
+            {{COMPETITOR_CARDS}}
+        </div>
+    </div>
+</section>
+
+<!-- ===== 3. 诊断分析 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('diagnosis')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-orange-500 rounded-full"></span>
+            诊断分析
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="diagnosis-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="diagnosis">
+        <div class="space-y-4">
+            {{TITLE_DIAGNOSIS}}
+            {{CONTENT_DIAGNOSIS}}
+            {{TAG_DIAGNOSIS}}
+            {{TIMING_DIAGNOSIS}}
+        </div>
+        <!-- 差距分析 -->
+        <div class="mt-6 bg-red-50 rounded-lg p-4">
+            <h3 class="font-semibold text-red-700 mb-3">核心差距分析</h3>
+            {{GAP_ANALYSIS}}
+        </div>
+    </div>
+</section>
+
+<!-- ===== 4. 行动建议 ===== -->
+<section class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4 cursor-pointer" onclick="toggleSection('actions')">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="w-1 h-6 bg-orange-500 rounded-full"></span>
+            行动建议
+        </h2>
+        <svg class="w-5 h-5 text-gray-400 transition-transform" id="actions-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    </div>
+    <div class="collapse-content open" id="actions">
+        <div class="mb-6">
+            <h3 class="font-semibold text-green-700 mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                立即可改
+            </h3>
+            <div class="space-y-2">
+                {{IMMEDIATE_ACTIONS}}
+            </div>
+        </div>
+        <div>
+            <h3 class="font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                下次改进
+            </h3>
+            <div class="space-y-2">
+                {{NEXT_IMPROVEMENTS}}
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<footer class="text-center py-6 text-sm text-gray-400">
+    Creator Skill 帖子诊断 · 数据仅供参考 · 请遵守小红书社区规范
+</footer>
+
+<script>
+function toggleSection(id) {
+    const content = document.getElementById(id);
+    const arrow = document.getElementById(id + '-arrow');
+    content.classList.toggle('open');
+    arrow.style.transform = content.classList.contains('open') ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+// 雷达图
+const radarData = {{RADAR_DATA_JSON}};
+if (radarData && radarData.labels) {
+    new Chart(document.getElementById('radarChart'), {
+        type: 'radar',
+        data: {
+            labels: radarData.labels,
+            datasets: [{
+                label: '你的帖子',
+                data: radarData.yours,
+                borderColor: '#FF2442',
+                backgroundColor: 'rgba(255, 36, 66, 0.1)',
+                pointBackgroundColor: '#FF2442'
+            }, {
+                label: '竞品平均',
+                data: radarData.competitors,
+                borderColor: '#3B82F6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                pointBackgroundColor: '#3B82F6'
+            }]
+        },
+        options: {
+            scales: { r: { beginAtZero: true, max: 10 } },
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+// 竞品对比柱状图
+const compData = {{COMPARISON_CHART_JSON}};
+if (compData && compData.labels) {
+    new Chart(document.getElementById('comparisonChart'), {
+        type: 'bar',
+        data: {
+            labels: compData.labels,
+            datasets: [
+                { label: '点赞', data: compData.likes, backgroundColor: 'rgba(255, 36, 66, 0.7)' },
+                { label: '收藏', data: compData.collects, backgroundColor: 'rgba(255, 165, 0, 0.7)' },
+                { label: '评论', data: compData.comments, backgroundColor: 'rgba(54, 162, 235, 0.7)' }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' }, title: { display: true, text: '你的帖子 vs 竞品互动数据' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+</script>
+
+</body>
+</html>
